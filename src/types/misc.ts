@@ -1,7 +1,7 @@
 export type ListItem = {
   id: string | number;
   name: string;
-  form: any;
+  form: FormFields;
 };
 
 type FormField = {
@@ -14,7 +14,9 @@ type FormField = {
 
 export type FormModel = {
   name: string;
-  fields: {
-    [key: string]: FormField;
-  };
+  fields: FormFields;
+};
+
+export type FormFields = {
+  [key: string]: FormField;
 };

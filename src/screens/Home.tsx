@@ -1,58 +1,115 @@
-import { FlatList, StyleSheet, Text, TouchableOpacity } from "react-native";
+import React, { useState, useEffect } from "react";
+import { ScrollView, StyleSheet, Text, TextInput, View } from "react-native";
 import { ApplicationScreenProps } from "../types/navigation";
-import { SafeAreaView } from "react-native-safe-area-context";
 import { ModelOne, ModelTwo } from "../data/data";
-import { ListItem } from "../types/misc";
+import { FormFields, ListItem } from "../types/misc";
+import DropdownPicker from "../component/Dropdown";
 
 export default function Home({ navigation }: ApplicationScreenProps) {
+  const [selectedModel, setSelectedModel] = useState<ListItem>();
+  const [fieldValues, setFieldValues] = useState<FormFields>({});
+
+  const [outputs, setOutputs] = useState<{
+    [key: string]: { value: string };
+  }>();
+
   const data: ListItem[] = [
-    { id: 1, name: "Data Model One", form: ModelOne },
+    { id: 1, name: ModelOne.name, form: ModelOne.fields },
     {
       id: 2,
-      name: "Data Model Two",
-      form: ModelTwo,
+      name: ModelTwo.name,
+      form: ModelTwo.fields,
     },
   ];
 
-  const renderItem = ({ item }: { item: ListItem }) => {
-    return (
-      <TouchableOpacity
-        style={styles.listItem}
-        onPress={() => navigation.navigate("Forms", { form: item.form })}
-      >
-        <Text style={styles.text}>{item.name}</Text>
-      </TouchableOpacity>
-    );
-  };
+  useEffect(() => {
+    if (fieldValues) {
+      const calculateMethods = Object.values(fieldValues).filter(
+        (item) => item.calculate
+      );
+
+      calculateMethods.forEach(async (item) => {
+        if (item.calculate) {
+          const result = await item.calculate(fieldValues);
+          setOutputs((prev) => ({
+            ...prev,
+            [item.label]: {
+              value: String(result),
+            },
+          }));
+        }
+      });
+    }
+  }, [fieldValues]);
 
   return (
-    <SafeAreaView style={styles.container}>
-      <FlatList
+    <ScrollView
+      contentContainerStyle={styles.contentContainer}
+      style={styles.container}
+    >
+      <DropdownPicker
         data={data}
-        renderItem={renderItem}
-        contentContainerStyle={styles.contentContainer}
+        value={selectedModel}
+        onItemSelect={(item) => {
+          setFieldValues(item.form);
+          setSelectedModel(item);
+        }}
       />
-    </SafeAreaView>
+
+      {selectedModel &&
+        fieldValues &&
+        Object.entries(fieldValues).map(([key, item]) => {
+          return (
+            <View key={key}>
+              <Text style={styles.label}>{item.label}</Text>
+
+              {item.calculate ? (
+                <TextInput
+                  editable={false}
+                  style={styles.input}
+                  value={outputs?.[item.label]?.value || ""}
+                  multiline
+                  numberOfLines={5}
+                />
+              ) : (
+                <TextInput
+                  editable={item.readOnly ? false : true}
+                  style={styles.input}
+                  value={item.value}
+                  onChangeText={(text) => {
+                    setFieldValues((prev) => ({
+                      ...prev,
+                      [key]: {
+                        ...prev[key],
+                        value: text,
+                      },
+                    }));
+                  }}
+                  keyboardType={item.type === "number" ? "numeric" : "default"}
+                />
+              )}
+            </View>
+          );
+        })}
+    </ScrollView>
   );
 }
 
 const styles = StyleSheet.create({
+  contentContainer: {
+    paddingHorizontal: 20,
+  },
   container: {
-    flex: 1,
     backgroundColor: "#fff",
   },
-  contentContainer: {
-    padding: 20,
-  },
-  listItem: {
-    padding: 20,
-    backgroundColor: "#eee",
-    marginBottom: 10,
+  input: {
+    height: 40,
+    borderColor: "gray",
     borderWidth: 1,
-    borderColor: "#ccc",
-    borderRadius: 5,
+    marginBottom: 20,
+    padding: 10,
   },
-  text: {
-    fontSize: 20,
+  label: {
+    fontSize: 16,
   },
 });
